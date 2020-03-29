@@ -6,8 +6,51 @@ pub struct Lexer {
     read_position: usize,
 }
 
+impl Iterator for Lexer {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Token> {
+        self.consume_whitespace();
+
+        let next_char = self.read_char();
+        next_char.map(|c| match c {
+            '=' => match self.peek() {
+                Some('=') => Token::Equal,
+                _ => Token::Assign,
+            },
+            '+' => Token::Plus,
+            '-' => Token::Minus,
+            '!' => match self.peek() {
+                Some('=') => Token::NotEqual,
+                _ => Token::Bang,
+            },
+            '*' => Token::Asterisk,
+            '/' => Token::Slash,
+            '<' => Token::LessThan,
+            '>' => Token::GreaterThan,
+            '(' => Token::LeftParen,
+            ')' => Token::RightParen,
+            '{' => Token::LeftBrace,
+            '}' => Token::RightBrace,
+            ',' => Token::Comma,
+            ';' => Token::Semicolon,
+            c => {
+                if is_identifier_start(c) {
+                    let literal = self.read_identifier();
+                    lookup_identifier(literal)
+                } else if c.is_ascii_digit() {
+                    let literal = self.read_number();
+                    Token::Int(literal)
+                } else {
+                    Token::Illegal(c.to_string())
+                }
+            }
+        })
+    }
+}
+
 impl Lexer {
-    fn new(input: String) -> Self {
+    pub fn new(input: String) -> Self {
         Lexer {
             input: input.clone().chars().collect(),
             position: 0,
@@ -29,48 +72,6 @@ impl Lexer {
             c
         })
     }
-
-    fn next_token(&mut self) -> Token {
-        self.consume_whitespace();
-
-        let next_char = self.read_char();
-        next_char
-            .map(|c| match c {
-                '=' => match self.peek() {
-                    Some('=') => Token::Equal,
-                    _ => Token::Assign,
-                },
-                '+' => Token::Plus,
-                '-' => Token::Minus,
-                '!' => match self.peek() {
-                    Some('=') => Token::NotEqual,
-                    _ => Token::Bang,
-                },
-                '*' => Token::Asterisk,
-                '/' => Token::Slash,
-                '<' => Token::LessThan,
-                '>' => Token::GreaterThan,
-                '(' => Token::LeftParen,
-                ')' => Token::RightParen,
-                '{' => Token::LeftBrace,
-                '}' => Token::RightBrace,
-                ',' => Token::Comma,
-                ';' => Token::Semicolon,
-                c => {
-                    if is_identifier_start(c) {
-                        let literal = self.read_identifier();
-                        lookup_identifier(literal)
-                    } else if c.is_ascii_digit() {
-                        let literal = self.read_number();
-                        Token::Int(literal)
-                    } else {
-                        Token::Illegal(c.to_string())
-                    }
-                }
-            })
-            .unwrap_or(Token::EOF)
-    }
-
     fn consume_whitespace(&mut self) {
         while self.peek().map_or(false, |c| c.is_whitespace()) {
             self.read_char();
@@ -117,20 +118,19 @@ fn lookup_identifier(identifier: String) -> Token {
 
 #[cfg(test)]
 mod tests {
-    use crate::lexer::lexer::Lexer;
+    use crate::lexer::Lexer;
     use crate::token::Token;
 
     fn assert_tokens(input: String, tokens: &[Token]) -> () {
         let mut lexer = Lexer::new(input);
 
-        for token in tokens.iter() {
-            assert_eq!(lexer.next_token(), *token)
+        for (actual, expected) in lexer.zip(tokens.iter()) {
+            assert_eq!(actual, *expected)
         }
-        assert_eq!(lexer.next_token(), Token::EOF)
     }
 
     #[test]
-    fn next_token_literals() {
+    fn next_literals() {
         let input = String::from("=+(){},;");
         let tokens = [
             Token::Assign,
@@ -147,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn next_token_kitchen_sync() {
+    fn next_kitchen_sync() {
         let input = String::from(
             "
 let five = 5;
@@ -234,7 +234,6 @@ if (5 < 10) {
             Token::False,
             Token::Semicolon,
             Token::RightBrace,
-            Token::EOF,
         ];
 
         assert_tokens(input, &tokens)
