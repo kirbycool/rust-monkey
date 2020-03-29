@@ -1,15 +1,29 @@
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Illegal(String),
-    EOF(String),
+    EOF,
 
     // Identifiers + literals
     Identifier(String),
     Int(String),
+    True,
+    False,
+    If,
+    Else,
+    Return,
 
     // Operators
     Assign,
     Plus,
+    Minus,
+    Bang,
+    Asterisk,
+    Slash,
+
+    GreaterThan,
+    LessThan,
+    Equal,
+    NotEqual,
 
     // Delimiters
     Comma,
@@ -21,6 +35,6 @@ pub enum Token {
     RightBrace,
 
     // Keywords
-    Function(String),
-    Let(String),
+    Function,
+    Let,
 }
