@@ -14,13 +14,13 @@ impl Iterator for Lexer {
 
         let next_char = self.read_char();
         next_char.map(|c| match c {
-            '=' => match self.peek() {
+            '=' => match self.peek_char() {
                 Some('=') => Token::Equal,
                 _ => Token::Assign,
             },
             '+' => Token::Plus,
             '-' => Token::Minus,
-            '!' => match self.peek() {
+            '!' => match self.peek_char() {
                 Some('=') => Token::NotEqual,
                 _ => Token::Bang,
             },
@@ -58,7 +58,7 @@ impl Lexer {
         }
     }
 
-    fn peek(&self) -> Option<char> {
+    fn peek_char(&self) -> Option<char> {
         if self.read_position >= self.input.len() {
             return None;
         }
@@ -66,21 +66,21 @@ impl Lexer {
     }
 
     fn read_char(&mut self) -> Option<char> {
-        self.peek().map(|c| {
+        self.peek_char().map(|c| {
             self.position = self.read_position;
             self.read_position += 1;
             c
         })
     }
     fn consume_whitespace(&mut self) {
-        while self.peek().map_or(false, |c| c.is_whitespace()) {
+        while self.peek_char().map_or(false, |c| c.is_whitespace()) {
             self.read_char();
         }
     }
 
     fn read_identifier(&mut self) -> String {
         let start = self.position;
-        while self.peek().map_or(false, |c| is_identifier(c)) {
+        while self.peek_char().map_or(false, |c| is_identifier(c)) {
             self.read_char();
         }
         self.input[start..self.read_position].iter().collect()
@@ -88,7 +88,7 @@ impl Lexer {
 
     fn read_number(&mut self) -> String {
         let start = self.position;
-        while self.peek().map_or(false, |c| c.is_ascii_digit()) {
+        while self.peek_char().map_or(false, |c| c.is_ascii_digit()) {
             self.read_char();
         }
         self.input[start..self.read_position].iter().collect()
@@ -122,7 +122,7 @@ mod tests {
     use crate::token::Token;
 
     fn assert_tokens(input: String, tokens: &[Token]) -> () {
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
 
         for (actual, expected) in lexer.zip(tokens.iter()) {
             assert_eq!(actual, *expected)
