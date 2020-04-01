@@ -6,53 +6,10 @@ pub struct Lexer {
     read_position: usize,
 }
 
-impl Iterator for Lexer {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Token> {
-        self.consume_whitespace();
-
-        let next_char = self.read_char();
-        next_char.map(|c| match c {
-            '=' => match self.peek_char() {
-                Some('=') => Token::Equal,
-                _ => Token::Assign,
-            },
-            '+' => Token::Plus,
-            '-' => Token::Minus,
-            '!' => match self.peek_char() {
-                Some('=') => Token::NotEqual,
-                _ => Token::Bang,
-            },
-            '*' => Token::Asterisk,
-            '/' => Token::Slash,
-            '<' => Token::LessThan,
-            '>' => Token::GreaterThan,
-            '(' => Token::LeftParen,
-            ')' => Token::RightParen,
-            '{' => Token::LeftBrace,
-            '}' => Token::RightBrace,
-            ',' => Token::Comma,
-            ';' => Token::Semicolon,
-            c => {
-                if is_identifier_start(c) {
-                    let literal = self.read_identifier();
-                    lookup_identifier(literal)
-                } else if c.is_ascii_digit() {
-                    let literal = self.read_number();
-                    Token::Int(literal)
-                } else {
-                    Token::Illegal(c.to_string())
-                }
-            }
-        })
-    }
-}
-
 impl Lexer {
     pub fn new(input: String) -> Self {
         Lexer {
-            input: input.clone().chars().collect(),
+            input: input.chars().collect(),
             position: 0,
             read_position: 0,
         }
@@ -92,6 +49,55 @@ impl Lexer {
             self.read_char();
         }
         self.input[start..self.read_position].iter().collect()
+    }
+}
+
+impl Iterator for Lexer {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Token> {
+        self.consume_whitespace();
+
+        let next_char = self.read_char();
+        next_char.map(|c| match c {
+            '=' => match self.peek_char() {
+                Some('=') => {
+                    self.read_char();
+                    Token::Equal
+                }
+                _ => Token::Assign,
+            },
+            '+' => Token::Plus,
+            '-' => Token::Minus,
+            '!' => match self.peek_char() {
+                Some('=') => {
+                    self.read_char();
+                    Token::NotEqual
+                }
+                _ => Token::Bang,
+            },
+            '*' => Token::Asterisk,
+            '/' => Token::Slash,
+            '<' => Token::LessThan,
+            '>' => Token::GreaterThan,
+            '(' => Token::LeftParen,
+            ')' => Token::RightParen,
+            '{' => Token::LeftBrace,
+            '}' => Token::RightBrace,
+            ',' => Token::Comma,
+            ';' => Token::Semicolon,
+            c => {
+                if is_identifier_start(c) {
+                    let literal = self.read_identifier();
+                    lookup_identifier(literal)
+                } else if c.is_ascii_digit() {
+                    let literal = self.read_number();
+                    Token::Int(literal)
+                } else {
+                    Token::Illegal(c.to_string())
+                }
+            }
+        })
     }
 }
 
@@ -147,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn next_kitchen_sync() {
+    fn next_kitchen_sink() {
         let input = String::from(
             "
 let five = 5;
@@ -160,6 +166,9 @@ let add = fn(x, y) {
 let result = add(five, ten);
 !-/*5;
 5 < 10 > 5;
+
+1 != 2;
+2 == 2;
 
 if (5 < 10) {
     return true;
@@ -216,6 +225,14 @@ if (5 < 10) {
             Token::Int(String::from("10")),
             Token::GreaterThan,
             Token::Int(String::from("5")),
+            Token::Semicolon,
+            Token::Int(String::from("1")),
+            Token::NotEqual,
+            Token::Int(String::from("2")),
+            Token::Semicolon,
+            Token::Int(String::from("2")),
+            Token::Equal,
+            Token::Int(String::from("2")),
             Token::Semicolon,
             Token::If,
             Token::LeftParen,
