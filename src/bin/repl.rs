@@ -1,4 +1,5 @@
 use monkey::lexer::Lexer;
+use monkey::parser::Parser;
 use std::io;
 use std::io::Write;
 
@@ -13,8 +14,10 @@ fn main() {
         io::stdin().read_line(&mut input).expect("Failed to read");
 
         let lexer = Lexer::new(input);
-        for token in lexer {
-            println!("{:?}", token)
+        let mut parser = Parser::new(lexer);
+        match parser.parse() {
+            Ok(program) => println!("{}", program),
+            Err(errors) => println!("{}", errors.join("\n")),
         }
     }
 }

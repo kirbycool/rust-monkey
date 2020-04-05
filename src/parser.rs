@@ -126,7 +126,7 @@ impl Parser {
             }
             Some(&Token::If) => self.parse_if(),
             Some(&Token::Function) => self.parse_function_literal(),
-            _ => Err(String::from("Unrecognized expression")),
+            token => Err(format!("Illegal token {:?}", token)),
         }?;
 
         while let Some(token) = self.lexer.peek() {
