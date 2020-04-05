@@ -1,18 +1,19 @@
 use crate::ast::Precedence;
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Illegal(String),
 
-    // Identifiers + literals
-    Identifier(String),
+    // Idents + literals
+    Ident(String),
     Int(String),
     True,
     False,
     If,
     Else,
     Return,
+    Boolean(bool),
 
     // Operators
     Assign,
@@ -46,7 +47,7 @@ impl fmt::Display for Token {
         match self {
             Token::Plus => write!(f, "+"),
             Token::Minus => write!(f, "-"),
-            Token::Bang => write!(f, "!!"),
+            Token::Bang => write!(f, "!"),
             Token::Asterisk => write!(f, "*"),
             Token::Slash => write!(f, "/"),
             Token::GreaterThan => write!(f, ">"),
@@ -63,7 +64,7 @@ impl Token {
         match self {
             &Token::Plus => Precedence::Sum,
             &Token::Minus => Precedence::Sum,
-            &Token::Bang => Precedence::Product,
+            &Token::Asterisk => Precedence::Product,
             &Token::Slash => Precedence::Product,
             &Token::GreaterThan => Precedence::LessGreater,
             &Token::LessThan => Precedence::LessGreater,
