@@ -1,4 +1,4 @@
-use crate::token::Token;
+use crate::parser::token::Token;
 use std::fmt;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -46,7 +46,7 @@ impl fmt::Display for Stmt {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Ident(String),
-    Int(i32),
+    Int(i64),
     Bool(bool),
     Prefix(Token, Box<Expr>),
     Infix(Box<Expr>, Token, Box<Expr>),
@@ -122,7 +122,7 @@ pub enum Precedence {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Expr, Program, Stmt};
+    use crate::parser::ast::{Expr, Program, Stmt};
 
     #[test]
     fn test_to_string() {

@@ -1,4 +1,4 @@
-use crate::ast::Precedence;
+use crate::parser::ast::Precedence;
 use std::fmt;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -54,6 +54,7 @@ impl fmt::Display for Token {
             Token::LessThan => write!(f, "<"),
             Token::Equal => write!(f, "=="),
             Token::NotEqual => write!(f, "!="),
+            Token::Illegal(value) => write!(f, "{}", value),
             _ => write!(f, ""),
         }
     }

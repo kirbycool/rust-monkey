@@ -1,6 +1,6 @@
-use crate::ast::{Expr, Precedence, Program, Stmt};
-use crate::lexer::Lexer;
-use crate::token::Token;
+use crate::parser::ast::{Expr, Precedence, Program, Stmt};
+use crate::parser::token::Token;
+use crate::parser::Lexer;
 use std::iter::Peekable;
 use std::str;
 
@@ -126,7 +126,10 @@ impl Parser {
             }
             Some(&Token::If) => self.parse_if(),
             Some(&Token::Function) => self.parse_function_literal(),
-            token => Err(format!("Illegal token {:?}", token)),
+            token => Err(format!(
+                "Illegal token \"{}\"",
+                token.map(|t| t.to_string()).unwrap_or("EOF".to_string())
+            )),
         }?;
 
         while let Some(token) = self.lexer.peek() {
@@ -190,7 +193,7 @@ impl Parser {
 
     fn parse_int(&mut self) -> Result<Expr, String> {
         match self.lexer.next() {
-            Some(Token::Int(value)) => match str::parse::<i32>(value.as_str()) {
+            Some(Token::Int(value)) => match str::parse::<i64>(value.as_str()) {
                 Ok(value) => Ok(Expr::Int(value)),
                 Err(error) => Err(error.to_string()),
             },
@@ -326,10 +329,10 @@ fn token_error(actual: Option<&Token>, expected: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Expr, Program, Stmt};
-    use crate::lexer::Lexer;
+    use crate::parser::ast::{Expr, Program, Stmt};
+    use crate::parser::token::Token;
+    use crate::parser::Lexer;
     use crate::parser::Parser;
-    use crate::token::Token;
 
     fn assert_result(input: String, result: Result<Program, Vec<String>>) {
         let mut parser = Parser::new(Lexer::new(input));

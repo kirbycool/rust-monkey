@@ -1,4 +1,4 @@
-use crate::token::Token;
+use crate::parser::token::Token;
 
 pub struct Lexer {
     input: Vec<char>,
@@ -124,8 +124,8 @@ fn lookup_identifier(identifier: String) -> Token {
 
 #[cfg(test)]
 mod tests {
-    use crate::lexer::Lexer;
-    use crate::token::Token;
+    use crate::parser::token::Token;
+    use crate::parser::Lexer;
 
     fn assert_tokens(input: String, tokens: &[Token]) -> () {
         let lexer = Lexer::new(input);
