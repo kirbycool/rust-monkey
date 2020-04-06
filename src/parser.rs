@@ -223,40 +223,23 @@ impl Parser {
 
         let expr = self.parse_expression(Precedence::Lowest)?;
 
-        match self.lexer.peek() {
-            Some(&Token::RightParen) => (),
-            token => return Err(token_error(token, "RightParen")),
-        };
-
-        self.lexer.next(); // Consume the right paren
+        self.next_if(|t| t == &Token::RightParen, "RightParen")?;
 
         Ok(expr)
     }
 
     fn parse_if(&mut self) -> Result<Expr, String> {
         self.lexer.next(); // Consume the if
-        match self.lexer.peek() {
-            Some(&Token::LeftParen) => self.lexer.next(),
-            token => return Err(token_error(token, "LeftParen")),
-        };
+        self.next_if(|t| t == &Token::LeftParen, "LeftParen")?;
 
         let condition = self.parse_expression(Precedence::Lowest)?;
 
-        match self.lexer.peek() {
-            Some(&Token::RightParen) => self.lexer.next(),
-            token => return Err(token_error(token, "RightParen")),
-        };
-        match self.lexer.peek() {
-            Some(&Token::LeftBrace) => self.lexer.next(),
-            token => return Err(token_error(token, "LeftBrace")),
-        };
+        self.next_if(|t| t == &Token::RightParen, "RightParen")?;
+        self.next_if(|t| t == &Token::LeftBrace, "LeftBrace")?;
 
         let consequence = self.parse_block_statement()?;
 
-        match self.lexer.peek() {
-            Some(&Token::RightBrace) => self.lexer.next(),
-            token => return Err(token_error(token, "RightBrace")),
-        };
+        self.next_if(|t| t == &Token::RightBrace, "RightBrace")?;
 
         let alternative = match self.lexer.peek() {
             Some(&Token::Else) => Some(Box::new(self.parse_else()?)),
@@ -272,45 +255,27 @@ impl Parser {
 
     fn parse_else(&mut self) -> Result<Stmt, String> {
         self.lexer.next(); // Consume the else
-        match self.lexer.peek() {
-            Some(&Token::LeftBrace) => self.lexer.next(),
-            token => return Err(token_error(token, "LeftBrace")),
-        };
+        self.next_if(|t| t == &Token::LeftBrace, "LeftBrace")?;
 
         let alt = self.parse_block_statement()?;
 
-        match self.lexer.peek() {
-            Some(&Token::RightBrace) => self.lexer.next(),
-            token => return Err(token_error(token, "RightBrace")),
-        };
+        self.next_if(|t| t == &Token::RightBrace, "RightBrace")?;
 
         Ok(alt)
     }
 
     fn parse_function_literal(&mut self) -> Result<Expr, String> {
         self.lexer.next(); // Consume the fn
-        match self.lexer.peek() {
-            Some(&Token::LeftParen) => self.lexer.next(),
-            token => return Err(token_error(token, "LeftParen")),
-        };
+        self.next_if(|t| t == &Token::LeftParen, "LeftParen")?;
 
         let params = self.parse_function_params()?;
 
-        match self.lexer.peek() {
-            Some(&Token::RightParen) => self.lexer.next(),
-            token => return Err(token_error(token, "RightParen")),
-        };
-        match self.lexer.peek() {
-            Some(&Token::LeftBrace) => self.lexer.next(),
-            token => return Err(token_error(token, "LeftBrace")),
-        };
+        self.next_if(|t| t == &Token::RightParen, "RightParen")?;
+        self.next_if(|t| t == &Token::LeftBrace, "LeftBrace")?;
 
         let body = self.parse_block_statement()?;
 
-        match self.lexer.peek() {
-            Some(&Token::RightBrace) => self.lexer.next(),
-            token => return Err(token_error(token, "RightBrace")),
-        };
+        self.next_if(|t| t == &Token::RightBrace, "RightBrace")?;
 
         Ok(Expr::FunctionLiteral(params, Box::new(body)))
     }
@@ -329,6 +294,20 @@ impl Parser {
         }
 
         Ok(params)
+    }
+
+    fn next_if<F>(&mut self, checker: F, expected: &str) -> Result<(), String>
+    where
+        F: FnOnce(&Token) -> bool,
+    {
+        let peek = self.lexer.peek();
+        match peek.filter(|token| checker(*token)) {
+            None => Err(token_error(peek, expected)),
+            _ => {
+                self.lexer.next();
+                Ok(())
+            }
+        }
     }
 }
 
