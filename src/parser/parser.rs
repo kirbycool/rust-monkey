@@ -170,7 +170,10 @@ impl Parser {
             token => return Err(token_error(token, "RightParen")),
         };
 
-        Ok(Expr::Call(Box::new(identifier), args))
+        Ok(Expr::Call {
+            func: Box::new(identifier),
+            args,
+        })
     }
 
     fn parse_call_arguments(&mut self) -> Result<Vec<Expr>, String> {
@@ -210,15 +213,22 @@ impl Parser {
     }
 
     fn parse_prefix(&mut self) -> Result<Expr, String> {
-        let operator = self.lexer.next().unwrap();
-        let operand = self.parse_expression(Precedence::Prefix);
-        operand.map(|expr| Expr::Prefix(operator, Box::new(expr)))
+        let op = self.lexer.next().unwrap();
+        let right = self.parse_expression(Precedence::Prefix);
+        right.map(|expr| Expr::Prefix {
+            op,
+            right: Box::new(expr),
+        })
     }
 
     fn parse_infix(&mut self, left: Expr) -> Result<Expr, String> {
-        let operator = self.lexer.next().unwrap();
-        let right = self.parse_expression(operator.precedence());
-        right.map(|expr| Expr::Infix(Box::new(left), operator, Box::new(expr)))
+        let op = self.lexer.next().unwrap();
+        let right = self.parse_expression(op.precedence());
+        right.map(|expr| Expr::Infix {
+            left: Box::new(left),
+            op,
+            right: Box::new(expr),
+        })
     }
 
     fn parse_grouped_expression(&mut self) -> Result<Expr, String> {
@@ -249,11 +259,11 @@ impl Parser {
             _ => None,
         };
 
-        Ok(Expr::If(
-            Box::new(condition),
-            Box::new(consequence),
+        Ok(Expr::If {
+            test: Box::new(condition),
+            consequent: Box::new(consequence),
             alternative,
-        ))
+        })
     }
 
     fn parse_else(&mut self) -> Result<Stmt, String> {
@@ -280,7 +290,10 @@ impl Parser {
 
         self.next_if(|t| t == &Token::RightBrace, "RightBrace")?;
 
-        Ok(Expr::FunctionLiteral(params, Box::new(body)))
+        Ok(Expr::FunctionLiteral {
+            params,
+            body: Box::new(body),
+        })
     }
 
     fn parse_function_params(&mut self) -> Result<Vec<Expr>, String> {
@@ -366,11 +379,11 @@ mod tests {
             ("return true", Stmt::Return(Expr::Bool(true))),
             (
                 "return x + y",
-                Stmt::Return(Expr::Infix(
-                    Box::new(Expr::Ident("x".to_string())),
-                    Token::Plus,
-                    Box::new(Expr::Ident("y".to_string())),
-                )),
+                Stmt::Return(Expr::Infix {
+                    left: Box::new(Expr::Ident("x".to_string())),
+                    op: Token::Plus,
+                    right: Box::new(Expr::Ident("y".to_string())),
+                }),
             ),
         ];
         for (input, stmt) in cases.iter().cloned() {
@@ -414,8 +427,14 @@ mod tests {
         let input = "!5; -15;";
         let expected = Program {
             statements: vec![
-                Stmt::Expr(Expr::Prefix(Token::Bang, Box::new(Expr::Int(5)))),
-                Stmt::Expr(Expr::Prefix(Token::Minus, Box::new(Expr::Int(15)))),
+                Stmt::Expr(Expr::Prefix {
+                    op: Token::Bang,
+                    right: Box::new(Expr::Int(5)),
+                }),
+                Stmt::Expr(Expr::Prefix {
+                    op: Token::Minus,
+                    right: Box::new(Expr::Int(15)),
+                }),
             ],
         };
         assert_result(String::from(input), Ok(expected))
@@ -435,46 +454,46 @@ mod tests {
 
         let expected = Program {
             statements: vec![
-                Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Int(5)),
-                    Token::Plus,
-                    Box::new(Expr::Int(5)),
-                )),
-                Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Int(5)),
-                    Token::Minus,
-                    Box::new(Expr::Int(5)),
-                )),
-                Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Int(5)),
-                    Token::Asterisk,
-                    Box::new(Expr::Int(5)),
-                )),
-                Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Int(5)),
-                    Token::Slash,
-                    Box::new(Expr::Int(5)),
-                )),
-                Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Int(5)),
-                    Token::GreaterThan,
-                    Box::new(Expr::Int(5)),
-                )),
-                Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Int(5)),
-                    Token::LessThan,
-                    Box::new(Expr::Int(5)),
-                )),
-                Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Int(5)),
-                    Token::Equal,
-                    Box::new(Expr::Int(5)),
-                )),
-                Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Int(5)),
-                    Token::NotEqual,
-                    Box::new(Expr::Int(5)),
-                )),
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Int(5)),
+                    op: Token::Plus,
+                    right: Box::new(Expr::Int(5)),
+                }),
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Int(5)),
+                    op: Token::Minus,
+                    right: Box::new(Expr::Int(5)),
+                }),
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Int(5)),
+                    op: Token::Asterisk,
+                    right: Box::new(Expr::Int(5)),
+                }),
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Int(5)),
+                    op: Token::Slash,
+                    right: Box::new(Expr::Int(5)),
+                }),
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Int(5)),
+                    op: Token::GreaterThan,
+                    right: Box::new(Expr::Int(5)),
+                }),
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Int(5)),
+                    op: Token::LessThan,
+                    right: Box::new(Expr::Int(5)),
+                }),
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Int(5)),
+                    op: Token::Equal,
+                    right: Box::new(Expr::Int(5)),
+                }),
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Int(5)),
+                    op: Token::NotEqual,
+                    right: Box::new(Expr::Int(5)),
+                }),
             ],
         };
         assert_result(String::from(input), Ok(expected))
@@ -483,18 +502,18 @@ mod tests {
     #[test]
     fn if_expression() {
         let input = "if (x < y) { x }";
-        let condition = Expr::Infix(
-            Box::new(Expr::Ident(String::from("x"))),
-            Token::LessThan,
-            Box::new(Expr::Ident(String::from("y"))),
-        );
+        let condition = Expr::Infix {
+            left: Box::new(Expr::Ident(String::from("x"))),
+            op: Token::LessThan,
+            right: Box::new(Expr::Ident(String::from("y"))),
+        };
         let consequence = Stmt::BlockStmt(vec![Stmt::Expr(Expr::Ident(String::from("x")))]);
         let expected = Program {
-            statements: vec![Stmt::Expr(Expr::If(
-                Box::new(condition),
-                Box::new(consequence),
-                None,
-            ))],
+            statements: vec![Stmt::Expr(Expr::If {
+                test: Box::new(condition),
+                consequent: Box::new(consequence),
+                alternative: None,
+            })],
         };
 
         let lexer = Lexer::new(String::from(input));
@@ -511,19 +530,19 @@ if ((x < y)) {
     #[test]
     fn if_else() {
         let input = "if (x < y) { x } else { y }";
-        let condition = Expr::Infix(
-            Box::new(Expr::Ident(String::from("x"))),
-            Token::LessThan,
-            Box::new(Expr::Ident(String::from("y"))),
-        );
+        let condition = Expr::Infix {
+            left: Box::new(Expr::Ident(String::from("x"))),
+            op: Token::LessThan,
+            right: Box::new(Expr::Ident(String::from("y"))),
+        };
         let consequence = Stmt::BlockStmt(vec![Stmt::Expr(Expr::Ident(String::from("x")))]);
         let alternative = Stmt::BlockStmt(vec![Stmt::Expr(Expr::Ident(String::from("y")))]);
         let expected = Program {
-            statements: vec![Stmt::Expr(Expr::If(
-                Box::new(condition),
-                Box::new(consequence),
-                Some(Box::new(alternative)),
-            ))],
+            statements: vec![Stmt::Expr(Expr::If {
+                test: Box::new(condition),
+                consequent: Box::new(consequence),
+                alternative: Some(Box::new(alternative)),
+            })],
         };
 
         let lexer = Lexer::new(String::from(input));
@@ -543,13 +562,16 @@ if ((x < y)) {
     fn function_literal() {
         let input = "fn(x, y) { x + y; }";
         let params = vec![Expr::Ident("x".to_string()), Expr::Ident("y".to_string())];
-        let body = Stmt::BlockStmt(vec![Stmt::Expr(Expr::Infix(
-            Box::new(Expr::Ident("x".to_string())),
-            Token::Plus,
-            Box::new(Expr::Ident("y".to_string())),
-        ))]);
+        let body = Stmt::BlockStmt(vec![Stmt::Expr(Expr::Infix {
+            left: Box::new(Expr::Ident(String::from("x"))),
+            op: Token::Plus,
+            right: Box::new(Expr::Ident(String::from("y"))),
+        })]);
         let expected = Program {
-            statements: vec![Stmt::Expr(Expr::FunctionLiteral(params, Box::new(body)))],
+            statements: vec![Stmt::Expr(Expr::FunctionLiteral {
+                params,
+                body: Box::new(body),
+            })],
         };
 
         let lexer = Lexer::new(String::from(input));
@@ -567,17 +589,21 @@ fn (x, y) {
     fn call() {
         let input = "add(1, 2 * 3, 4 + 5);";
         let arg1 = Expr::Int(1);
-        let arg2 = Expr::Infix(
-            Box::new(Expr::Int(2)),
-            Token::Asterisk,
-            Box::new(Expr::Int(3)),
-        );
-        let arg3 = Expr::Infix(Box::new(Expr::Int(4)), Token::Plus, Box::new(Expr::Int(5)));
+        let arg2 = Expr::Infix {
+            left: Box::new(Expr::Int(2)),
+            op: Token::Asterisk,
+            right: Box::new(Expr::Int(3)),
+        };
+        let arg3 = Expr::Infix {
+            left: Box::new(Expr::Int(4)),
+            op: Token::Plus,
+            right: Box::new(Expr::Int(5)),
+        };
         let expected = Program {
-            statements: vec![Stmt::Expr(Expr::Call(
-                Box::new(Expr::Ident("add".to_string())),
-                vec![arg1, arg2, arg3],
-            ))],
+            statements: vec![Stmt::Expr(Expr::Call {
+                func: Box::new(Expr::Ident("add".to_string())),
+                args: vec![arg1, arg2, arg3],
+            })],
         };
 
         let lexer = Lexer::new(String::from(input));

@@ -46,16 +46,20 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
     match expr {
         Expr::Int(value) => Ok(Int(value)),
         Expr::Bool(value) => Ok(Bool(value)),
-        Expr::Prefix(token, expr) => eval_prefix(token, eval_expr(*expr, env.clone())?),
-        Expr::Infix(left, op, right) => eval_infix(
+        Expr::Prefix { op, right } => eval_prefix(op, eval_expr(*right, env.clone())?),
+        Expr::Infix { left, op, right } => eval_infix(
             eval_expr(*left, env.clone())?,
             op,
             eval_expr(*right, env.clone())?,
         ),
-        Expr::If(cond, cons, alt) => eval_conditional(
-            eval_expr(*cond, env.clone())?,
-            *cons,
-            alt.map(|e| *e),
+        Expr::If {
+            test,
+            consequent,
+            alternative,
+        } => eval_conditional(
+            eval_expr(*test, env.clone())?,
+            *consequent,
+            alternative.map(|e| *e),
             env.clone(),
         ),
         Expr::Ident(name) => env
@@ -63,12 +67,12 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
             .get(&name)
             .map(|obj| obj.clone())
             .ok_or(format!("Unbound identifier: {}", name)),
-        Expr::FunctionLiteral(params, body) => Ok(Function {
+        Expr::FunctionLiteral { params, body } => Ok(Function {
             params,
             body: *body,
             env,
         }),
-        Expr::Call(func, params) => eval_function_call(*func, params, env.clone()),
+        Expr::Call { func, args } => eval_function_call(*func, args, env.clone()),
     }
 }
 
@@ -328,11 +332,11 @@ mod tests {
             "fn(x) { x + 2; }",
             Ok(Function {
                 params: vec![Expr::Ident("x".to_string())],
-                body: Stmt::BlockStmt(vec![Stmt::Expr(Expr::Infix(
-                    Box::new(Expr::Ident("x".to_string())),
-                    Token::Plus,
-                    Box::new(Expr::Int(2)),
-                ))]),
+                body: Stmt::BlockStmt(vec![Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::Ident("x".to_string())),
+                    op: Token::Plus,
+                    right: Box::new(Expr::Int(2)),
+                })]),
                 env: Env::new().wrap(),
             }),
         )];

@@ -48,11 +48,28 @@ pub enum Expr {
     Ident(String),
     Int(i64),
     Bool(bool),
-    Prefix(Token, Box<Expr>),
-    Infix(Box<Expr>, Token, Box<Expr>),
-    If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
-    FunctionLiteral(Vec<Expr>, Box<Stmt>),
-    Call(Box<Expr>, Vec<Expr>),
+    Prefix {
+        op: Token,
+        right: Box<Expr>,
+    },
+    Infix {
+        left: Box<Expr>,
+        op: Token,
+        right: Box<Expr>,
+    },
+    If {
+        test: Box<Expr>,
+        consequent: Box<Stmt>,
+        alternative: Option<Box<Stmt>>,
+    },
+    FunctionLiteral {
+        params: Vec<Expr>,
+        body: Box<Stmt>,
+    },
+    Call {
+        func: Box<Expr>,
+        args: Vec<Expr>,
+    },
 }
 
 impl fmt::Display for Expr {
@@ -61,32 +78,34 @@ impl fmt::Display for Expr {
             Expr::Ident(name) => write!(f, "{}", name),
             Expr::Int(value) => write!(f, "{}", value.to_string()),
             Expr::Bool(value) => write!(f, "{}", value.to_string()),
-            Expr::Prefix(operator, operand) => {
-                write!(f, "({}{})", operator.to_string(), operand.to_string())
-            }
-            Expr::Infix(left, operator, right) => write!(
+            Expr::Prefix { op, right } => write!(f, "({}{})", op.to_string(), right.to_string()),
+            Expr::Infix { left, op, right } => write!(
                 f,
                 "({} {} {})",
                 left.to_string(),
-                operator.to_string(),
+                op.to_string(),
                 right.to_string()
             ),
-            Expr::If(condition, consequence, alternative) => match alternative {
+            Expr::If {
+                test,
+                consequent,
+                alternative,
+            } => match alternative {
                 Some(alt) => write!(
                     f,
                     "if ({}) {{\n{}\n}} else {{\n{}\n}}",
-                    condition.to_string(),
-                    indent(consequence.to_string().as_str(), 1),
+                    test.to_string(),
+                    indent(consequent.to_string().as_str(), 1),
                     indent(alt.to_string().as_str(), 1)
                 ),
                 None => write!(
                     f,
                     "if ({}) {{\n{}\n}}",
-                    condition.to_string(),
-                    indent(consequence.to_string().as_str(), 1)
+                    test.to_string(),
+                    indent(consequent.to_string().as_str(), 1)
                 ),
             },
-            Expr::FunctionLiteral(params, body) => write!(
+            Expr::FunctionLiteral { params, body } => write!(
                 f,
                 "fn ({}) {{\n{}\n}}",
                 params
@@ -96,10 +115,10 @@ impl fmt::Display for Expr {
                     .join(", "),
                 indent(body.to_string().as_str(), 1)
             ),
-            Expr::Call(name, args) => write!(
+            Expr::Call { func, args } => write!(
                 f,
                 "{}({})",
-                name,
+                func,
                 args.iter()
                     .map(|arg| arg.to_string())
                     .collect::<Vec<String>>()
