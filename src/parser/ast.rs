@@ -141,7 +141,7 @@ let baz = foo;",
     }
 }
 
-fn indent(input: &str, level: usize) -> String {
+pub fn indent(input: &str, level: usize) -> String {
     let indented = input.lines().map(|line| {
         if line.chars().any(|c| !c.is_whitespace()) {
             format!("{}{}", "    ".repeat(level), line)
