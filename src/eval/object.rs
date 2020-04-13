@@ -60,6 +60,10 @@ impl Env {
         }
     }
 
+    pub fn wrap(self) -> EnvWrapper {
+        Rc::new(RefCell::new(self))
+    }
+
     pub fn get(&self, key: &String) -> Option<Object> {
         let value = self.store.get(key);
         match value {
@@ -78,8 +82,6 @@ pub type EnvWrapper = Rc<RefCell<Env>>;
 #[cfg(test)]
 mod tests {
     use crate::eval::object::{Env, Object};
-    use std::cell::RefCell;
-    use std::rc::Rc;
 
     #[test]
     fn env() {
@@ -97,7 +99,7 @@ mod tests {
         outer.insert("foo".to_string(), Object::Int(10));
         outer.insert("bar".to_string(), Object::Null);
 
-        let mut env = Env::from(Rc::new(RefCell::new(outer)));
+        let mut env = Env::from(outer.wrap());
         env.insert("bar".to_string(), Object::Int(5));
         env.insert("baz".to_string(), Object::Int(2));
 

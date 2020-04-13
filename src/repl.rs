@@ -1,17 +1,15 @@
 use crate::eval::eval;
 use crate::eval::object::{Env, EnvWrapper};
 use crate::parser::{Lexer, Parser};
-use std::cell::RefCell;
 use std::io;
 use std::io::Write;
-use std::rc::Rc;
 
 pub fn repl_loop() {
     println!("Welcome to a super great Monkey REPL");
     println!("Type .exit to exit.");
     println!("Type .help to get a syntax error. I am lazy.");
 
-    let env = Rc::new(RefCell::new(Env::new()));
+    let env = Env::new().wrap();
 
     loop {
         print!(">> ");

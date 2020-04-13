@@ -2,8 +2,6 @@ use crate::eval::object::Object::*;
 use crate::eval::object::{Env, EnvWrapper, Object};
 use crate::parser::ast::{Expr, Program, Stmt};
 use crate::parser::token::Token;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 pub type EvalResult = Result<Object, String>;
 
@@ -160,7 +158,7 @@ fn eval_function_call(func_expr: Expr, args: Vec<Expr>, env: EnvWrapper) -> Eval
         };
     }
 
-    let result = eval_stmt(body, Rc::new(RefCell::new(call_env)))?;
+    let result = eval_stmt(body, call_env.wrap())?;
     Ok(result)
 }
 
@@ -172,14 +170,12 @@ mod tests {
     use crate::parser::ast::{Expr, Stmt};
     use crate::parser::token::Token;
     use crate::parser::{Lexer, Parser};
-    use std::cell::RefCell;
-    use std::rc::Rc;
 
     fn assert_cases(cases: Vec<(&str, EvalResult)>) -> () {
         for (input, output) in cases.iter().cloned() {
             let mut parser = Parser::new(Lexer::new(input.to_string()));
             let program = parser.parse().unwrap();
-            assert_eq!(eval(program, Rc::new(RefCell::new(Env::new()))), output)
+            assert_eq!(eval(program, Env::new().wrap()), output)
         }
     }
 
@@ -337,7 +333,7 @@ mod tests {
                     Token::Plus,
                     Box::new(Expr::Int(2)),
                 ))]),
-                env: Rc::new(RefCell::new(Env::new())),
+                env: Env::new().wrap(),
             }),
         )];
         assert_cases(cases)
