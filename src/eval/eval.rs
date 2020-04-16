@@ -1,3 +1,4 @@
+use crate::eval::builtin::BuiltinFn;
 use crate::eval::object::Object::*;
 use crate::eval::object::{Env, EnvWrapper, Object};
 use crate::parser::ast::{Expr, Program, Stmt};
@@ -63,11 +64,7 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
             alternative.map(|e| *e),
             env.clone(),
         ),
-        Expr::Ident(name) => env
-            .borrow()
-            .get(&name)
-            .map(|obj| obj.clone())
-            .ok_or(format!("Unbound identifier: {}", name)),
+        Expr::Ident(name) => eval_ident(name, env),
         Expr::FunctionLiteral { params, body } => Ok(Function {
             params,
             body: *body,
@@ -144,28 +141,42 @@ fn eval_conditional(cond: Object, cons: Stmt, alt: Option<Stmt>, env: EnvWrapper
     }
 }
 
-fn eval_function_call(func_expr: Expr, args: Vec<Expr>, env: EnvWrapper) -> EvalResult {
-    let func = eval_expr(func_expr, env.clone())?;
-    let (params, body, func_env) = match func {
-        Function { params, body, env } => (params, body, env),
-        _ => return Err(format!("Can't call: {}", func)),
-    };
+fn eval_ident(name: String, env: EnvWrapper) -> EvalResult {
+    match name.as_str() {
+        "len" => Ok(Builtin(BuiltinFn::Len)),
+        "puts" => Ok(Builtin(BuiltinFn::Puts)),
+        _ => {
+            let obj = env
+                .borrow()
+                .get(&name)
+                .ok_or(format!("Unbound identifier: {}", name));
+            obj.clone()
+        }
+    }
+}
 
+fn eval_function_call(func_expr: Expr, args: Vec<Expr>, env: EnvWrapper) -> EvalResult {
     let args = args
         .into_iter()
         .map(|expr| eval_expr(expr, env.clone()))
         .collect::<Result<Vec<Object>, String>>()?;
 
-    let mut call_env = Env::from(func_env);
-    for (param, arg) in params.into_iter().zip(args.into_iter()) {
-        let _ = match param {
-            Expr::Ident(name) => call_env.insert(name, arg),
-            _ => return Err(format!("Invalid param: {}", param)),
-        };
-    }
+    let func = eval_expr(func_expr, env.clone())?;
+    match func {
+        Function { params, body, env } => {
+            let mut call_env = Env::from(env);
+            for (param, arg) in params.into_iter().zip(args.into_iter()) {
+                let _ = match param {
+                    Expr::Ident(name) => call_env.insert(name, arg),
+                    _ => return Err(format!("Invalid param: {}", param)),
+                };
+            }
 
-    let result = eval_stmt(body, call_env.wrap())?;
-    Ok(result)
+            eval_stmt(body, call_env.wrap())
+        }
+        Builtin(builtin_fn) => builtin_fn.call(args),
+        _ => Err(format!("Can't call: {}", func)),
+    }
 }
 
 #[cfg(test)]
@@ -199,7 +210,10 @@ mod tests {
 
     #[test]
     fn string_expr() {
-        let cases = vec![("\"foo\"", Ok(StringObj("foo".to_string())))];
+        let cases = vec![
+            //("\"foo\"", Ok(StringObj("foo".to_string()))),
+            ("\"\"", Ok(StringObj("".to_string()))),
+        ];
         assert_cases(cases)
     }
 
@@ -392,6 +406,29 @@ mod tests {
                 Ok(Int(5)),
             ),
         ];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn builtin_len() {
+        let cases = vec![
+            ("len(\"\")", Ok(Int(0))),
+            ("len(\"four\")", Ok(Int(4))),
+            (
+                "len(1)",
+                Err("Expected StringObj, got [Int(1)]".to_string()),
+            ),
+            (
+                "len(\"foo\", \"bar\")",
+                Err(r#"Expected StringObj, got [StringObj("foo"), StringObj("bar")]"#.to_string()),
+            ),
+        ];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn builtin_puts() {
+        let cases = vec![("puts(\"Foo\")", Ok(Null)), ("puts(1, 2)", Ok(Null))];
         assert_cases(cases)
     }
 }

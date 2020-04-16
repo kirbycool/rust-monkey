@@ -52,8 +52,7 @@ impl Lexer {
     }
 
     fn read_string(&mut self) -> String {
-        self.read_char();
-        let start = self.position;
+        let start = self.read_position;
         while self.peek_char().map_or(false, |c| c != '"') {
             self.read_char();
         }
@@ -166,10 +165,13 @@ mod tests {
 
     #[test]
     fn string_literal() {
-        let cases = vec![(
-            "\"foobar\"".to_string(),
-            [Token::String("foobar".to_string())],
-        )];
+        let cases = vec![
+            (
+                "\"foobar\"".to_string(),
+                [Token::String("foobar".to_string())],
+            ),
+            ("\"\"".to_string(), [Token::String("".to_string())]),
+        ];
         for (input, output) in cases.into_iter() {
             assert_tokens(input, &output)
         }

@@ -1,3 +1,4 @@
+use crate::eval::builtin::BuiltinFn;
 use crate::parser::ast::{indent, Expr, Stmt};
 use std::cell::RefCell;
 use std::cmp::PartialEq;
@@ -16,6 +17,7 @@ pub enum Object {
         body: Stmt,
         env: EnvWrapper,
     },
+    Builtin(BuiltinFn),
     Null,
 }
 
@@ -24,7 +26,7 @@ impl fmt::Display for Object {
         match self {
             Object::Int(value) => write!(f, "{}", value.to_string()),
             Object::Bool(value) => write!(f, "{}", value.to_string()),
-            Object::StringObj(value) => write!(f, "\"{}\"", value),
+            Object::StringObj(value) => write!(f, "{}", value),
             Object::Return(value) => write!(f, "{}", value.to_string()),
             Object::Function { params, body, .. } => write!(
                 f,
@@ -36,6 +38,7 @@ impl fmt::Display for Object {
                     .join(", "),
                 indent(body.to_string().as_str(), 1)
             ),
+            Object::Builtin(func) => write!(f, "{}", func),
             Object::Null => write!(f, "null"),
         }
     }
