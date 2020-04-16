@@ -50,6 +50,17 @@ impl Lexer {
         }
         self.input[start..self.read_position].iter().collect()
     }
+
+    fn read_string(&mut self) -> String {
+        self.read_char();
+        let start = self.position;
+        while self.peek_char().map_or(false, |c| c != '"') {
+            self.read_char();
+        }
+        let result = self.input[start..self.read_position].iter().collect();
+        self.read_char();
+        result
+    }
 }
 
 impl Iterator for Lexer {
@@ -86,6 +97,7 @@ impl Iterator for Lexer {
             '}' => Token::RightBrace,
             ',' => Token::Comma,
             ';' => Token::Semicolon,
+            '"' => Token::String(self.read_string()),
             c => {
                 if is_identifier_start(c) {
                     let literal = self.read_identifier();
@@ -150,6 +162,17 @@ mod tests {
         ];
 
         assert_tokens(input, &tokens)
+    }
+
+    #[test]
+    fn string_literal() {
+        let cases = vec![(
+            "\"foobar\"".to_string(),
+            [Token::String("foobar".to_string())],
+        )];
+        for (input, output) in cases.into_iter() {
+            assert_tokens(input, &output)
+        }
     }
 
     #[test]

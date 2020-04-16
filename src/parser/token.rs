@@ -14,6 +14,7 @@ pub enum Token {
     Else,
     Return,
     Boolean(bool),
+    String(String),
 
     // Operators
     Assign,

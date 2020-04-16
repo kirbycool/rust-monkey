@@ -48,6 +48,7 @@ pub enum Expr {
     Ident(String),
     Int(i64),
     Bool(bool),
+    String(String),
     Prefix {
         op: Token,
         right: Box<Expr>,
@@ -78,6 +79,7 @@ impl fmt::Display for Expr {
             Expr::Ident(name) => write!(f, "{}", name),
             Expr::Int(value) => write!(f, "{}", value.to_string()),
             Expr::Bool(value) => write!(f, "{}", value.to_string()),
+            Expr::String(value) => write!(f, "{}", value),
             Expr::Prefix { op, right } => write!(f, "({}{})", op.to_string(), right.to_string()),
             Expr::Infix { left, op, right } => write!(
                 f,

@@ -9,6 +9,7 @@ use std::rc::Rc;
 pub enum Object {
     Int(i64),
     Bool(bool),
+    StringObj(String),
     Return(Box<Object>),
     Function {
         params: Vec<Expr>,
@@ -23,6 +24,7 @@ impl fmt::Display for Object {
         match self {
             Object::Int(value) => write!(f, "{}", value.to_string()),
             Object::Bool(value) => write!(f, "{}", value.to_string()),
+            Object::StringObj(value) => write!(f, "\"{}\"", value),
             Object::Return(value) => write!(f, "{}", value.to_string()),
             Object::Function { params, body, .. } => write!(
                 f,

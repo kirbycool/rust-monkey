@@ -119,6 +119,7 @@ impl Parser {
             Some(&Token::Ident(_)) => self.parse_identifier(),
             Some(&Token::Int(_)) => self.parse_int(),
             Some(&Token::True) | Some(&Token::False) => self.parse_boolean(),
+            Some(&Token::String(_)) => self.parse_string(),
             Some(&Token::Bang) | Some(&Token::Minus) => self.parse_prefix(),
             Some(&Token::LeftParen) => self.parse_grouped_expression(),
             Some(&Token::RightParen) => {
@@ -209,6 +210,13 @@ impl Parser {
             Some(Token::True) => Ok(Expr::Bool(true)),
             Some(Token::False) => Ok(Expr::Bool(false)),
             token => Err(token_error(token.as_ref(), "True or False")),
+        }
+    }
+
+    fn parse_string(&mut self) -> Result<Expr, String> {
+        match self.lexer.next() {
+            Some(Token::String(value)) => Ok(Expr::String(value)),
+            token => Err(token_error(token.as_ref(), "String")),
         }
     }
 
@@ -418,6 +426,18 @@ mod tests {
         let input = "true; false;";
         let expected = Program {
             statements: vec![Stmt::Expr(Expr::Bool(true)), Stmt::Expr(Expr::Bool(false))],
+        };
+        assert_result(String::from(input), Ok(expected))
+    }
+
+    #[test]
+    fn string() {
+        let input = "\"foo\"; \"bar\";";
+        let expected = Program {
+            statements: vec![
+                Stmt::Expr(Expr::String("foo".to_string())),
+                Stmt::Expr(Expr::String("bar".to_string())),
+            ],
         };
         assert_result(String::from(input), Ok(expected))
     }

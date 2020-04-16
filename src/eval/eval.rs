@@ -46,6 +46,7 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
     match expr {
         Expr::Int(value) => Ok(Int(value)),
         Expr::Bool(value) => Ok(Bool(value)),
+        Expr::String(value) => Ok(StringObj(value)),
         Expr::Prefix { op, right } => eval_prefix(op, eval_expr(*right, env.clone())?),
         Expr::Infix { left, op, right } => eval_infix(
             eval_expr(*left, env.clone())?,
@@ -95,6 +96,7 @@ fn eval_infix(left: Object, op: Token, right: Object) -> EvalResult {
     match (left, right) {
         (Int(l), Int(r)) => eval_int_infix(l, op, r),
         (Bool(l), Bool(r)) => eval_bool_infix(l, op, r),
+        (StringObj(l), StringObj(r)) => Ok(StringObj(format!("{}{}", l, r))),
         (l, r) => Err(format!(
             "Illegal operation {} {} {}",
             l.to_string(),
@@ -192,6 +194,18 @@ mod tests {
     #[test]
     fn bool_expr() {
         let cases = vec![("true", Ok(Bool(true))), ("false", Ok(Bool(false)))];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn string_expr() {
+        let cases = vec![("\"foo\"", Ok(StringObj("foo".to_string())))];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn string_concat() {
+        let cases = vec![("\"foo\" + \"bar\"", Ok(StringObj("foobar".to_string())))];
         assert_cases(cases)
     }
 
