@@ -67,6 +67,7 @@ pub enum Expr {
         params: Vec<Expr>,
         body: Box<Stmt>,
     },
+    Array(Vec<Expr>),
     Call {
         func: Box<Expr>,
         args: Vec<Expr>,
@@ -107,6 +108,15 @@ impl fmt::Display for Expr {
                     indent(consequent.to_string().as_str(), 1)
                 ),
             },
+            Expr::Array(items) => write!(
+                f,
+                "[{}]",
+                items
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", "),
+            ),
             Expr::FunctionLiteral { params, body } => write!(
                 f,
                 "fn ({}) {{\n{}\n}}",

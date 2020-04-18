@@ -14,7 +14,7 @@ pub enum Token {
     Else,
     Return,
     Boolean(bool),
-    String(String),
+    Str(String),
 
     // Operators
     Assign,
@@ -33,10 +33,12 @@ pub enum Token {
     Comma,
     Semicolon,
 
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
 
     // Keywords
     Function,

@@ -65,6 +65,7 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
             env.clone(),
         ),
         Expr::Ident(name) => eval_ident(name, env),
+        Expr::Array(items) => Ok(Null),
         Expr::FunctionLiteral { params, body } => Ok(Function {
             params,
             body: *body,

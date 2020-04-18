@@ -4,6 +4,8 @@ use crate::parser::Lexer;
 use std::iter::Peekable;
 use std::str;
 
+type ParseResult<T> = Result<T, String>;
+
 pub struct Parser {
     lexer: Peekable<Lexer>,
 }
@@ -35,7 +37,7 @@ impl Parser {
     //////
     /// Stmt parsers
     //////
-    fn parse_statement(&mut self) -> Result<Stmt, String> {
+    fn parse_statement(&mut self) -> ParseResult<Stmt> {
         let result = match self.lexer.peek() {
             Some(&Token::Let) => self.parse_let(),
             Some(&Token::Return) => self.parse_return(),
@@ -47,7 +49,7 @@ impl Parser {
         })
     }
 
-    fn parse_let(&mut self) -> Result<Stmt, String> {
+    fn parse_let(&mut self) -> ParseResult<Stmt> {
         self.lexer.next(); // Consume Let
 
         let name = match self.lexer.next() {
@@ -68,7 +70,7 @@ impl Parser {
         expression
     }
 
-    fn parse_return(&mut self) -> Result<Stmt, String> {
+    fn parse_return(&mut self) -> ParseResult<Stmt> {
         self.lexer.next(); // Consume return
 
         let expression = self
@@ -79,7 +81,7 @@ impl Parser {
         expression
     }
 
-    fn parse_expression_statement(&mut self) -> Result<Stmt, String> {
+    fn parse_expression_statement(&mut self) -> ParseResult<Stmt> {
         let expression = self
             .parse_expression(Precedence::Lowest)
             .map(|expr| Stmt::Expr(expr));
@@ -90,10 +92,10 @@ impl Parser {
         expression
     }
 
-    fn parse_block_statement(&mut self) -> Result<Stmt, String> {
+    fn parse_block_statement(&mut self) -> ParseResult<Stmt> {
         let mut statements = Vec::new();
         while let Some(token) = self.lexer.peek() {
-            if token == &Token::RightBrace {
+            if token == &Token::RBrace {
                 break;
             }
 
@@ -114,17 +116,17 @@ impl Parser {
     //////
     /// Expr parsers
     //////
-    fn parse_expression(&mut self, precedence: Precedence) -> Result<Expr, String> {
+    fn parse_expression(&mut self, precedence: Precedence) -> ParseResult<Expr> {
         let mut left = match self.lexer.peek() {
             Some(&Token::Ident(_)) => self.parse_identifier(),
             Some(&Token::Int(_)) => self.parse_int(),
             Some(&Token::True) | Some(&Token::False) => self.parse_boolean(),
-            Some(&Token::String(_)) => self.parse_string(),
+            Some(&Token::Str(_)) => self.parse_string(),
             Some(&Token::Bang) | Some(&Token::Minus) => self.parse_prefix(),
-            Some(&Token::LeftParen) => self.parse_grouped_expression(),
-            Some(&Token::RightParen) => {
-                Err(String::from("Got RightParen without a matching LeftParen"))
-            }
+            Some(&Token::LParen) => self.parse_grouped_expression(),
+            Some(&Token::RParen) => Err(String::from("Got RParen without a matching LParen")),
+            Some(&Token::LBracket) => self.parse_array_literal(),
+            Some(&Token::RBracket) => Err(String::from("Got RBracket without a matching LBracket")),
             Some(&Token::If) => self.parse_if(),
             Some(&Token::Function) => self.parse_function_literal(),
             token => Err(format!(
@@ -153,22 +155,22 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_identifier(&mut self) -> Result<Expr, String> {
+    fn parse_identifier(&mut self) -> ParseResult<Expr> {
         let identifier = match self.lexer.next() {
             Some(Token::Ident(name)) => Expr::Ident(name),
             token => return Err(token_error(token.as_ref(), "Ident")),
         };
 
         match self.lexer.peek() {
-            Some(&Token::LeftParen) => self.lexer.next(),
+            Some(&Token::LParen) => self.lexer.next(),
             _ => return Ok(identifier),
         };
 
         let args = self.parse_call_arguments()?;
 
         match self.lexer.peek() {
-            Some(&Token::RightParen) => self.lexer.next(),
-            token => return Err(token_error(token, "RightParen")),
+            Some(&Token::RParen) => self.lexer.next(),
+            token => return Err(token_error(token, "RParen")),
         };
 
         Ok(Expr::Call {
@@ -177,10 +179,10 @@ impl Parser {
         })
     }
 
-    fn parse_call_arguments(&mut self) -> Result<Vec<Expr>, String> {
+    fn parse_call_arguments(&mut self) -> ParseResult<Vec<Expr>> {
         let mut args = Vec::new();
         while let Some(token) = self.lexer.peek() {
-            if token == &Token::RightParen {
+            if token == &Token::RParen {
                 return Ok(args);
             }
 
@@ -195,7 +197,7 @@ impl Parser {
         Ok(args)
     }
 
-    fn parse_int(&mut self) -> Result<Expr, String> {
+    fn parse_int(&mut self) -> ParseResult<Expr> {
         match self.lexer.next() {
             Some(Token::Int(value)) => match str::parse::<i64>(value.as_str()) {
                 Ok(value) => Ok(Expr::Int(value)),
@@ -205,7 +207,7 @@ impl Parser {
         }
     }
 
-    fn parse_boolean(&mut self) -> Result<Expr, String> {
+    fn parse_boolean(&mut self) -> ParseResult<Expr> {
         match self.lexer.next() {
             Some(Token::True) => Ok(Expr::Bool(true)),
             Some(Token::False) => Ok(Expr::Bool(false)),
@@ -213,14 +215,14 @@ impl Parser {
         }
     }
 
-    fn parse_string(&mut self) -> Result<Expr, String> {
+    fn parse_string(&mut self) -> ParseResult<Expr> {
         match self.lexer.next() {
-            Some(Token::String(value)) => Ok(Expr::String(value)),
+            Some(Token::Str(value)) => Ok(Expr::String(value)),
             token => Err(token_error(token.as_ref(), "String")),
         }
     }
 
-    fn parse_prefix(&mut self) -> Result<Expr, String> {
+    fn parse_prefix(&mut self) -> ParseResult<Expr> {
         let op = self.lexer.next().unwrap();
         let right = self.parse_expression(Precedence::Prefix);
         right.map(|expr| Expr::Prefix {
@@ -229,7 +231,7 @@ impl Parser {
         })
     }
 
-    fn parse_infix(&mut self, left: Expr) -> Result<Expr, String> {
+    fn parse_infix(&mut self, left: Expr) -> ParseResult<Expr> {
         let op = self.lexer.next().unwrap();
         let right = self.parse_expression(op.precedence());
         right.map(|expr| Expr::Infix {
@@ -239,28 +241,46 @@ impl Parser {
         })
     }
 
-    fn parse_grouped_expression(&mut self) -> Result<Expr, String> {
+    fn parse_grouped_expression(&mut self) -> ParseResult<Expr> {
         self.lexer.next(); // Consume the left paren
 
         let expr = self.parse_expression(Precedence::Lowest)?;
 
-        self.next_if(|t| t == &Token::RightParen, "RightParen")?;
+        self.next_if(|t| t == &Token::RParen, "RParen")?;
 
         Ok(expr)
     }
 
-    fn parse_if(&mut self) -> Result<Expr, String> {
+    fn parse_array_literal(&mut self) -> ParseResult<Expr> {
+        self.lexer.next(); // Consume the left bracket
+
+        let mut items = Vec::new();
+        while self.lexer.peek() != Some(&Token::RBracket) {
+            let item = self.parse_expression(Precedence::Lowest)?;
+            items.push(item);
+
+            if self.lexer.peek() == Some(&Token::Comma) {
+                self.lexer.next();
+            }
+        }
+
+        self.lexer.next(); // Consume the right bracket
+
+        Ok(Expr::Array(items))
+    }
+
+    fn parse_if(&mut self) -> ParseResult<Expr> {
         self.lexer.next(); // Consume the if
-        self.next_if(|t| t == &Token::LeftParen, "LeftParen")?;
+        self.next_if(|t| t == &Token::LParen, "LParen")?;
 
         let condition = self.parse_expression(Precedence::Lowest)?;
 
-        self.next_if(|t| t == &Token::RightParen, "RightParen")?;
-        self.next_if(|t| t == &Token::LeftBrace, "LeftBrace")?;
+        self.next_if(|t| t == &Token::RParen, "RParen")?;
+        self.next_if(|t| t == &Token::LBrace, "LBrace")?;
 
         let consequence = self.parse_block_statement()?;
 
-        self.next_if(|t| t == &Token::RightBrace, "RightBrace")?;
+        self.next_if(|t| t == &Token::RBrace, "RBrace")?;
 
         let alternative = match self.lexer.peek() {
             Some(&Token::Else) => Some(Box::new(self.parse_else()?)),
@@ -274,29 +294,29 @@ impl Parser {
         })
     }
 
-    fn parse_else(&mut self) -> Result<Stmt, String> {
+    fn parse_else(&mut self) -> ParseResult<Stmt> {
         self.lexer.next(); // Consume the else
-        self.next_if(|t| t == &Token::LeftBrace, "LeftBrace")?;
+        self.next_if(|t| t == &Token::LBrace, "LBrace")?;
 
         let alt = self.parse_block_statement()?;
 
-        self.next_if(|t| t == &Token::RightBrace, "RightBrace")?;
+        self.next_if(|t| t == &Token::RBrace, "RBrace")?;
 
         Ok(alt)
     }
 
-    fn parse_function_literal(&mut self) -> Result<Expr, String> {
+    fn parse_function_literal(&mut self) -> ParseResult<Expr> {
         self.lexer.next(); // Consume the fn
-        self.next_if(|t| t == &Token::LeftParen, "LeftParen")?;
+        self.next_if(|t| t == &Token::LParen, "LParen")?;
 
         let params = self.parse_function_params()?;
 
-        self.next_if(|t| t == &Token::RightParen, "RightParen")?;
-        self.next_if(|t| t == &Token::LeftBrace, "LeftBrace")?;
+        self.next_if(|t| t == &Token::RParen, "RParen")?;
+        self.next_if(|t| t == &Token::LBrace, "LBrace")?;
 
         let body = self.parse_block_statement()?;
 
-        self.next_if(|t| t == &Token::RightBrace, "RightBrace")?;
+        self.next_if(|t| t == &Token::RBrace, "RBrace")?;
 
         Ok(Expr::FunctionLiteral {
             params,
@@ -304,7 +324,7 @@ impl Parser {
         })
     }
 
-    fn parse_function_params(&mut self) -> Result<Vec<Expr>, String> {
+    fn parse_function_params(&mut self) -> ParseResult<Vec<Expr>> {
         let mut params = Vec::new();
         while let Some(&Token::Ident(_)) = self.lexer.peek() {
             match self.lexer.next() {
@@ -320,7 +340,7 @@ impl Parser {
         Ok(params)
     }
 
-    fn next_if<F>(&mut self, checker: F, expected: &str) -> Result<(), String>
+    fn next_if<F>(&mut self, checker: F, expected: &str) -> ParseResult<()>
     where
         F: FnOnce(&Token) -> bool,
     {
@@ -576,6 +596,29 @@ if ((x < y)) {
     y;
 };";
         assert_eq!(program.to_string(), String::from(expected_string))
+    }
+
+    #[test]
+    fn array_literal() {
+        let input = "[1, 1 + 2]";
+        let expr = Expr::Array(vec![
+            Expr::Int(1),
+            Expr::Infix {
+                left: Box::new(Expr::Int(1)),
+                op: Token::Plus,
+                right: Box::new(Expr::Int(2)),
+            },
+        ]);
+        let expected = Program {
+            statements: vec![Stmt::Expr(expr)],
+        };
+
+        let lexer = Lexer::new(String::from(input));
+        let program = Parser::new(lexer).parse().unwrap();
+        assert_eq!(program, expected);
+
+        let expected_string = "[1, (1 + 2)];";
+        assert_eq!(program.to_string(), expected_string.to_string())
     }
 
     #[test]

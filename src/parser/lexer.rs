@@ -1,4 +1,5 @@
 use crate::parser::token::Token;
+use crate::parser::token::Token::*;
 
 pub struct Lexer {
     input: Vec<char>,
@@ -73,39 +74,41 @@ impl Iterator for Lexer {
             '=' => match self.peek_char() {
                 Some('=') => {
                     self.read_char();
-                    Token::Equal
+                    Equal
                 }
-                _ => Token::Assign,
+                _ => Assign,
             },
-            '+' => Token::Plus,
-            '-' => Token::Minus,
+            '+' => Plus,
+            '-' => Minus,
             '!' => match self.peek_char() {
                 Some('=') => {
                     self.read_char();
-                    Token::NotEqual
+                    NotEqual
                 }
-                _ => Token::Bang,
+                _ => Bang,
             },
-            '*' => Token::Asterisk,
-            '/' => Token::Slash,
-            '<' => Token::LessThan,
-            '>' => Token::GreaterThan,
-            '(' => Token::LeftParen,
-            ')' => Token::RightParen,
-            '{' => Token::LeftBrace,
-            '}' => Token::RightBrace,
-            ',' => Token::Comma,
-            ';' => Token::Semicolon,
-            '"' => Token::String(self.read_string()),
+            '*' => Asterisk,
+            '/' => Slash,
+            '<' => LessThan,
+            '>' => GreaterThan,
+            '(' => LParen,
+            ')' => RParen,
+            '{' => LBrace,
+            '}' => RBrace,
+            '[' => LBracket,
+            ']' => RBracket,
+            ',' => Comma,
+            ';' => Semicolon,
+            '"' => Str(self.read_string()),
             c => {
                 if is_identifier_start(c) {
                     let literal = self.read_identifier();
                     lookup_identifier(literal)
                 } else if c.is_ascii_digit() {
                     let literal = self.read_number();
-                    Token::Int(literal)
+                    Int(literal)
                 } else {
-                    Token::Illegal(c.to_string())
+                    Illegal(c.to_string())
                 }
             }
         })
@@ -122,20 +125,21 @@ fn is_identifier(c: char) -> bool {
 
 fn lookup_identifier(identifier: String) -> Token {
     match &identifier[..] {
-        "fn" => Token::Function,
-        "let" => Token::Let,
-        "true" => Token::True,
-        "false" => Token::False,
-        "if" => Token::If,
-        "else" => Token::Else,
-        "return" => Token::Return,
-        _ => Token::Ident(identifier),
+        "fn" => Function,
+        "let" => Let,
+        "true" => True,
+        "false" => False,
+        "if" => If,
+        "else" => Else,
+        "return" => Return,
+        _ => Ident(identifier),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::parser::token::Token;
+    use crate::parser::token::Token::*;
     use crate::parser::Lexer;
 
     fn assert_tokens(input: String, tokens: &[Token]) -> () {
@@ -150,14 +154,7 @@ mod tests {
     fn next_literals() {
         let input = String::from("=+(){},;");
         let tokens = [
-            Token::Assign,
-            Token::Plus,
-            Token::LeftParen,
-            Token::RightParen,
-            Token::LeftBrace,
-            Token::RightBrace,
-            Token::Comma,
-            Token::Semicolon,
+            Assign, Plus, LParen, RParen, LBrace, RBrace, Comma, Semicolon,
         ];
 
         assert_tokens(input, &tokens)
@@ -166,12 +163,26 @@ mod tests {
     #[test]
     fn string_literal() {
         let cases = vec![
-            (
-                "\"foobar\"".to_string(),
-                [Token::String("foobar".to_string())],
-            ),
-            ("\"\"".to_string(), [Token::String("".to_string())]),
+            ("\"foobar\"".to_string(), [Str("foobar".to_string())]),
+            ("\"\"".to_string(), [Str("".to_string())]),
         ];
+        for (input, output) in cases.into_iter() {
+            assert_tokens(input, &output)
+        }
+    }
+
+    #[test]
+    fn array() {
+        let cases = vec![(
+            "[1, 2]".to_string(),
+            [
+                LBracket,
+                Int("1".to_string()),
+                Comma,
+                Int("2".to_string()),
+                RBracket,
+            ],
+        )];
         for (input, output) in cases.into_iter() {
             assert_tokens(input, &output)
         }
@@ -203,79 +214,79 @@ if (5 < 10) {
             ",
         );
         let tokens = [
-            Token::Let,
-            Token::Ident(String::from("five")),
-            Token::Assign,
-            Token::Int(String::from("5")),
-            Token::Semicolon,
-            Token::Let,
-            Token::Ident(String::from("ten")),
-            Token::Assign,
-            Token::Int(String::from("10")),
-            Token::Semicolon,
-            Token::Let,
-            Token::Ident(String::from("add")),
-            Token::Assign,
-            Token::Function,
-            Token::LeftParen,
-            Token::Ident(String::from("x")),
-            Token::Comma,
-            Token::Ident(String::from("y")),
-            Token::RightParen,
-            Token::LeftBrace,
-            Token::Ident(String::from("x")),
-            Token::Plus,
-            Token::Ident(String::from("y")),
-            Token::Semicolon,
-            Token::RightBrace,
-            Token::Semicolon,
-            Token::Let,
-            Token::Ident(String::from("result")),
-            Token::Assign,
-            Token::Ident(String::from("add")),
-            Token::LeftParen,
-            Token::Ident(String::from("five")),
-            Token::Comma,
-            Token::Ident(String::from("ten")),
-            Token::RightParen,
-            Token::Semicolon,
-            Token::Bang,
-            Token::Minus,
-            Token::Slash,
-            Token::Asterisk,
-            Token::Int(String::from("5")),
-            Token::Semicolon,
-            Token::Int(String::from("5")),
-            Token::LessThan,
-            Token::Int(String::from("10")),
-            Token::GreaterThan,
-            Token::Int(String::from("5")),
-            Token::Semicolon,
-            Token::Int(String::from("1")),
-            Token::NotEqual,
-            Token::Int(String::from("2")),
-            Token::Semicolon,
-            Token::Int(String::from("2")),
-            Token::Equal,
-            Token::Int(String::from("2")),
-            Token::Semicolon,
-            Token::If,
-            Token::LeftParen,
-            Token::Int(String::from("5")),
-            Token::LessThan,
-            Token::Int(String::from("10")),
-            Token::RightParen,
-            Token::LeftBrace,
-            Token::Return,
-            Token::True,
-            Token::Semicolon,
-            Token::RightBrace,
-            Token::Else,
-            Token::LeftBrace,
-            Token::Return,
-            Token::False,
-            Token::Semicolon,
-            Token::RightBrace,
+            Let,
+            Ident(String::from("five")),
+            Assign,
+            Int(String::from("5")),
+            Semicolon,
+            Let,
+            Ident(String::from("ten")),
+            Assign,
+            Int(String::from("10")),
+            Semicolon,
+            Let,
+            Ident(String::from("add")),
+            Assign,
+            Function,
+            LParen,
+            Ident(String::from("x")),
+            Comma,
+            Ident(String::from("y")),
+            RParen,
+            LBrace,
+            Ident(String::from("x")),
+            Plus,
+            Ident(String::from("y")),
+            Semicolon,
+            RBrace,
+            Semicolon,
+            Let,
+            Ident(String::from("result")),
+            Assign,
+            Ident(String::from("add")),
+            LParen,
+            Ident(String::from("five")),
+            Comma,
+            Ident(String::from("ten")),
+            RParen,
+            Semicolon,
+            Bang,
+            Minus,
+            Slash,
+            Asterisk,
+            Int(String::from("5")),
+            Semicolon,
+            Int(String::from("5")),
+            LessThan,
+            Int(String::from("10")),
+            GreaterThan,
+            Int(String::from("5")),
+            Semicolon,
+            Int(String::from("1")),
+            NotEqual,
+            Int(String::from("2")),
+            Semicolon,
+            Int(String::from("2")),
+            Equal,
+            Int(String::from("2")),
+            Semicolon,
+            If,
+            LParen,
+            Int(String::from("5")),
+            LessThan,
+            Int(String::from("10")),
+            RParen,
+            LBrace,
+            Return,
+            True,
+            Semicolon,
+            RBrace,
+            Else,
+            LBrace,
+            Return,
+            False,
+            Semicolon,
+            RBrace,
         ];
 
         assert_tokens(input, &tokens)
