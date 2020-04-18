@@ -48,6 +48,14 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
         Expr::Int(value) => Ok(Int(value)),
         Expr::Bool(value) => Ok(Bool(value)),
         Expr::String(value) => Ok(StringObj(value)),
+        Expr::Array(items) => {
+            let item_objs = items
+                .into_iter()
+                .map(|expr| eval_expr(expr, env.clone()))
+                .collect::<Result<Vec<Object>, String>>()?;
+            Ok(Array(item_objs))
+        }
+        Expr::Index { left, index } => eval_index(*left, *index, env),
         Expr::Prefix { op, right } => eval_prefix(op, eval_expr(*right, env.clone())?),
         Expr::Infix { left, op, right } => eval_infix(
             eval_expr(*left, env.clone())?,
@@ -65,20 +73,26 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
             env.clone(),
         ),
         Expr::Ident(name) => eval_ident(name, env),
-        Expr::Array(items) => {
-            let item_objs = items
-                .into_iter()
-                .map(|expr| eval_expr(expr, env.clone()))
-                .collect::<Result<Vec<Object>, String>>()?;
-            Ok(Array(item_objs))
-        }
-        Expr::Index { left, index } => Ok(Null),
         Expr::FunctionLiteral { params, body } => Ok(Function {
             params,
             body: *body,
             env,
         }),
         Expr::Call { func, args } => eval_function_call(*func, args, env.clone()),
+    }
+}
+
+fn eval_index(left: Expr, index: Expr, env: EnvWrapper) -> EvalResult {
+    let index_obj = eval_expr(index, env.clone())?;
+    match eval_expr(left, env)? {
+        Array(items) => match index_obj {
+            Int(index) => items
+                .get(index as usize)
+                .cloned()
+                .ok_or("Index out of bounds".to_string()),
+            obj => Err(format!("'{}' is not a valid array index", obj)),
+        },
+        obj => Err(format!("Can't index object '{}'", obj.to_string())),
     }
 }
 
@@ -219,7 +233,7 @@ mod tests {
     #[test]
     fn string_expr() {
         let cases = vec![
-            //("\"foo\"", Ok(StringObj("foo".to_string()))),
+            ("\"foo\"", Ok(StringObj("foo".to_string()))),
             ("\"\"", Ok(StringObj("".to_string()))),
         ];
         assert_cases(cases)
@@ -233,12 +247,19 @@ mod tests {
 
     #[test]
     fn array() {
+        let cases = vec![(
+            "[1, 1 + 2, \"foo\" + \"bar\"]",
+            Ok(Array(vec![Int(1), Int(3), StringObj("foobar".to_string())])),
+        )];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn array_index() {
         let cases = vec![
-            //("\"foo\"", Ok(StringObj("foo".to_string()))),
-            (
-                "[1, 1 + 2, \"foo\" + \"bar\"]",
-                Ok(Array(vec![Int(1), Int(3), StringObj("foobar".to_string())])),
-            ),
+            ("let foo = [1, 1 + 2]; foo[1];", Ok(Int(3))),
+            ("[1, 1 + 2][0];", Ok(Int(1))),
+            ("[1, 1 + 2][2];", Err("Index out of bounds".to_string())),
         ];
         assert_cases(cases)
     }
