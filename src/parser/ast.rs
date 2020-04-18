@@ -68,6 +68,10 @@ pub enum Expr {
         body: Box<Stmt>,
     },
     Array(Vec<Expr>),
+    Index {
+        left: Box<Expr>,
+        index: Box<Expr>,
+    },
     Call {
         func: Box<Expr>,
         args: Vec<Expr>,
@@ -117,6 +121,7 @@ impl fmt::Display for Expr {
                     .collect::<Vec<String>>()
                     .join(", "),
             ),
+            Expr::Index { left, index } => write!(f, "{}[{}]", left.to_string(), index.to_string()),
             Expr::FunctionLiteral { params, body } => write!(
                 f,
                 "fn ({}) {{\n{}\n}}",
@@ -149,6 +154,7 @@ pub enum Precedence {
     Product,
     Prefix,
     Call,
+    Index,
 }
 
 #[cfg(test)]

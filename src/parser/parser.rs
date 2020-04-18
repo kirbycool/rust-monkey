@@ -6,6 +6,19 @@ use std::str;
 
 type ParseResult<T> = Result<T, String>;
 
+fn token_error(actual: Option<&Token>, expected: &str) -> String {
+    match actual {
+        Some(token) => format!(
+            "Expected next token to be {}, got {:?} instead",
+            expected, token
+        ),
+        None => format!(
+            "Expected next token to be {}, got end of input instead",
+            expected
+        ),
+    }
+}
+
 pub struct Parser {
     lexer: Peekable<Lexer>,
 }
@@ -136,7 +149,7 @@ impl Parser {
         }?;
 
         while let Some(token) = self.lexer.peek() {
-            if token.precedence() <= precedence {
+            if token.precedence().left <= precedence {
                 break;
             }
             left = match token {
@@ -148,6 +161,7 @@ impl Parser {
                 | &Token::NotEqual
                 | &Token::LessThan
                 | &Token::GreaterThan => self.parse_infix(left)?,
+                &Token::LBracket => self.parse_transfix(left)?,
                 _ => left,
             }
         }
@@ -233,12 +247,31 @@ impl Parser {
 
     fn parse_infix(&mut self, left: Expr) -> ParseResult<Expr> {
         let op = self.lexer.next().unwrap();
-        let right = self.parse_expression(op.precedence());
+        let right = self.parse_expression(op.precedence().right);
         right.map(|expr| Expr::Infix {
             left: Box::new(left),
             op,
             right: Box::new(expr),
         })
+    }
+
+    fn parse_transfix(&mut self, left: Expr) -> ParseResult<Expr> {
+        let op = self.lexer.next().unwrap();
+        let right = self.parse_expression(op.precedence().right)?;
+
+        match op {
+            Token::LBracket => {
+                self.next_if(|t| t == &Token::RBracket, "RBracket")?;
+                Ok(Expr::Index {
+                    left: Box::new(left),
+                    index: Box::new(right),
+                })
+            }
+            _ => Err(format!(
+                "Unrecognized transfix operator '{}'",
+                op.to_string()
+            )),
+        }
     }
 
     fn parse_grouped_expression(&mut self) -> ParseResult<Expr> {
@@ -352,19 +385,6 @@ impl Parser {
                 Ok(())
             }
         }
-    }
-}
-
-fn token_error(actual: Option<&Token>, expected: &str) -> String {
-    match actual {
-        Some(token) => format!(
-            "Expected next token to be {}, got {:?} instead",
-            expected, token
-        ),
-        None => format!(
-            "Expected next token to be {}, got end of input instead",
-            expected
-        ),
     }
 }
 
@@ -618,6 +638,30 @@ if ((x < y)) {
         assert_eq!(program, expected);
 
         let expected_string = "[1, (1 + 2)];";
+        assert_eq!(program.to_string(), expected_string.to_string())
+    }
+
+    #[test]
+    fn index() {
+        let input = "foo[1 + 2]";
+
+        let expr = Expr::Index {
+            left: Box::new(Expr::Ident("foo".to_string())),
+            index: Box::new(Expr::Infix {
+                left: Box::new(Expr::Int(1)),
+                op: Token::Plus,
+                right: Box::new(Expr::Int(2)),
+            }),
+        };
+        let expected = Program {
+            statements: vec![Stmt::Expr(expr)],
+        };
+
+        let lexer = Lexer::new(String::from(input));
+        let program = Parser::new(lexer).parse().unwrap();
+        assert_eq!(program, expected);
+
+        let expected_string = "foo[(1 + 2)];";
         assert_eq!(program.to_string(), expected_string.to_string())
     }
 

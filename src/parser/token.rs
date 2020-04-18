@@ -63,18 +63,54 @@ impl fmt::Display for Token {
     }
 }
 
+pub struct BindingPower {
+    pub left: Precedence,
+    pub right: Precedence,
+}
+
 impl Token {
-    pub fn precedence(&self) -> Precedence {
+    pub fn precedence(&self) -> BindingPower {
         match self {
-            &Token::Plus => Precedence::Sum,
-            &Token::Minus => Precedence::Sum,
-            &Token::Asterisk => Precedence::Product,
-            &Token::Slash => Precedence::Product,
-            &Token::GreaterThan => Precedence::LessGreater,
-            &Token::LessThan => Precedence::LessGreater,
-            &Token::Equal => Precedence::Equals,
-            &Token::NotEqual => Precedence::Equals,
-            _ => Precedence::Lowest,
+            &Token::Plus => BindingPower {
+                left: Precedence::Sum,
+                right: Precedence::Sum,
+            },
+            &Token::Minus => BindingPower {
+                left: Precedence::Sum,
+                right: Precedence::Sum,
+            },
+            &Token::Asterisk => BindingPower {
+                left: Precedence::Product,
+                right: Precedence::Product,
+            },
+            &Token::Slash => BindingPower {
+                left: Precedence::Product,
+                right: Precedence::Product,
+            },
+            &Token::GreaterThan => BindingPower {
+                left: Precedence::LessGreater,
+                right: Precedence::LessGreater,
+            },
+            &Token::LessThan => BindingPower {
+                left: Precedence::LessGreater,
+                right: Precedence::LessGreater,
+            },
+            &Token::Equal => BindingPower {
+                left: Precedence::Equals,
+                right: Precedence::Equals,
+            },
+            &Token::NotEqual => BindingPower {
+                left: Precedence::Equals,
+                right: Precedence::Equals,
+            },
+            &Token::LBracket => BindingPower {
+                left: Precedence::Index,
+                right: Precedence::Lowest,
+            },
+            _ => BindingPower {
+                left: Precedence::Lowest,
+                right: Precedence::Lowest,
+            },
         }
     }
 }
