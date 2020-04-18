@@ -434,13 +434,17 @@ mod tests {
         let cases = vec![
             ("len(\"\")", Ok(Int(0))),
             ("len(\"four\")", Ok(Int(4))),
+            ("len([1, 2])", Ok(Int(2))),
             (
                 "len(1)",
-                Err("Expected StringObj, got [Int(1)]".to_string()),
+                Err("Expected StringObj or Array, got [Int(1)]".to_string()),
             ),
             (
                 "len(\"foo\", \"bar\")",
-                Err(r#"Expected StringObj, got [StringObj("foo"), StringObj("bar")]"#.to_string()),
+                Err(
+                    r#"Expected StringObj or Array, got [StringObj("foo"), StringObj("bar")]"#
+                        .to_string(),
+                ),
             ),
         ];
         assert_cases(cases)
