@@ -86,10 +86,10 @@ fn eval_index(left: Expr, index: Expr, env: EnvWrapper) -> EvalResult {
     let index_obj = eval_expr(index, env.clone())?;
     match eval_expr(left, env)? {
         Array(items) => match index_obj {
-            Int(index) => items
-                .get(index as usize)
-                .cloned()
-                .ok_or("Index out of bounds".to_string()),
+            Int(index) => match items.get(index as usize) {
+                Some(item) => Ok(item.clone()),
+                None => Ok(Null),
+            },
             obj => Err(format!("'{}' is not a valid array index", obj)),
         },
         obj => Err(format!("Can't index object '{}'", obj.to_string())),
@@ -165,6 +165,8 @@ fn eval_conditional(cond: Object, cons: Stmt, alt: Option<Stmt>, env: EnvWrapper
 
 fn eval_ident(name: String, env: EnvWrapper) -> EvalResult {
     match name.as_str() {
+        "first" => Ok(Builtin(BuiltinFn::First)),
+        "last" => Ok(Builtin(BuiltinFn::Last)),
         "len" => Ok(Builtin(BuiltinFn::Len)),
         "puts" => Ok(Builtin(BuiltinFn::Puts)),
         _ => {
@@ -259,7 +261,7 @@ mod tests {
         let cases = vec![
             ("let foo = [1, 1 + 2]; foo[1];", Ok(Int(3))),
             ("[1, 1 + 2][0];", Ok(Int(1))),
-            ("[1, 1 + 2][2];", Err("Index out of bounds".to_string())),
+            ("[1, 1 + 2][2];", Ok(Null)),
         ];
         assert_cases(cases)
     }
@@ -451,6 +453,32 @@ mod tests {
     }
 
     #[test]
+    fn builtin_first() {
+        let cases = vec![
+            ("first([1, 2])", Ok(Int(1))),
+            ("first([])", Ok(Null)),
+            (
+                "first(1)",
+                Err("'first' expected an Array, got [Int(1)]".to_string()),
+            ),
+        ];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn builtin_last() {
+        let cases = vec![
+            ("last([1, 2])", Ok(Int(2))),
+            ("last([])", Ok(Null)),
+            (
+                "last(1)",
+                Err("'last' expected an Array, got [Int(1)]".to_string()),
+            ),
+        ];
+        assert_cases(cases)
+    }
+
+    #[test]
     fn builtin_len() {
         let cases = vec![
             ("len(\"\")", Ok(Int(0))),
@@ -458,12 +486,12 @@ mod tests {
             ("len([1, 2])", Ok(Int(2))),
             (
                 "len(1)",
-                Err("Expected StringObj or Array, got [Int(1)]".to_string()),
+                Err("'len' expected StringObj or Array, got [Int(1)]".to_string()),
             ),
             (
                 "len(\"foo\", \"bar\")",
                 Err(
-                    r#"Expected StringObj or Array, got [StringObj("foo"), StringObj("bar")]"#
+                    r#"'len' expected StringObj or Array, got [StringObj("foo"), StringObj("bar")]"#
                         .to_string(),
                 ),
             ),
