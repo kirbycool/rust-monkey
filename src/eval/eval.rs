@@ -65,7 +65,13 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
             env.clone(),
         ),
         Expr::Ident(name) => eval_ident(name, env),
-        Expr::Array(items) => Ok(Null),
+        Expr::Array(items) => {
+            let item_objs = items
+                .into_iter()
+                .map(|expr| eval_expr(expr, env.clone()))
+                .collect::<Result<Vec<Object>, String>>()?;
+            Ok(Array(item_objs))
+        }
         Expr::Index { left, index } => Ok(Null),
         Expr::FunctionLiteral { params, body } => Ok(Function {
             params,
@@ -222,6 +228,18 @@ mod tests {
     #[test]
     fn string_concat() {
         let cases = vec![("\"foo\" + \"bar\"", Ok(StringObj("foobar".to_string())))];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn array() {
+        let cases = vec![
+            //("\"foo\"", Ok(StringObj("foo".to_string()))),
+            (
+                "[1, 1 + 2, \"foo\" + \"bar\"]",
+                Ok(Array(vec![Int(1), Int(3), StringObj("foobar".to_string())])),
+            ),
+        ];
         assert_cases(cases)
     }
 

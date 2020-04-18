@@ -11,6 +11,7 @@ pub enum Object {
     Int(i64),
     Bool(bool),
     StringObj(String),
+    Array(Vec<Object>),
     Return(Box<Object>),
     Function {
         params: Vec<Expr>,
@@ -27,6 +28,15 @@ impl fmt::Display for Object {
             Object::Int(value) => write!(f, "{}", value.to_string()),
             Object::Bool(value) => write!(f, "{}", value.to_string()),
             Object::StringObj(value) => write!(f, "{}", value),
+            Object::Array(items) => write!(
+                f,
+                "[{}]",
+                items
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             Object::Return(value) => write!(f, "{}", value.to_string()),
             Object::Function { params, body, .. } => write!(
                 f,
