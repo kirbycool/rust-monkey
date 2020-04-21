@@ -34,3 +34,7 @@ Hey you, bored/inspired person. Here's some more things you can work on:
   - Import system
   - Line numbers on errors
 - Type system (buy another book)
+
+## Licence
+
+MIT
