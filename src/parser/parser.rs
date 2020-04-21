@@ -140,6 +140,8 @@ impl Parser {
             Some(&Token::RParen) => Err(String::from("Got RParen without a matching LParen")),
             Some(&Token::LBracket) => self.parse_array_literal(),
             Some(&Token::RBracket) => Err(String::from("Got RBracket without a matching LBracket")),
+            Some(&Token::LBrace) => self.parse_hash_literal(),
+            Some(&Token::RBrace) => Err(String::from("Got RBrace without a matching LBrace")),
             Some(&Token::If) => self.parse_if(),
             Some(&Token::Function) => self.parse_function_literal(),
             token => Err(format!(
@@ -300,6 +302,24 @@ impl Parser {
         self.lexer.next(); // Consume the right bracket
 
         Ok(Expr::Array(items))
+    }
+
+    fn parse_hash_literal(&mut self) -> ParseResult<Expr> {
+        self.lexer.next(); // Consume the left brace
+
+        let mut entries = Vec::new();
+        while self.lexer.peek() != Some(&Token::RBrace) {
+            let key = self.parse_expression(Precedence::Lowest)?;
+            self.next_if(|t| t == &Token::Colon, "Colon")?;
+            let value = self.parse_expression(Precedence::Lowest)?;
+            entries.push((key, value));
+
+            if self.lexer.peek() == Some(&Token::Comma) {
+                self.lexer.next();
+            }
+        }
+        self.lexer.next(); // Consume the right brace
+        Ok(Expr::Hash(entries))
     }
 
     fn parse_if(&mut self) -> ParseResult<Expr> {
@@ -638,6 +658,43 @@ if ((x < y)) {
         assert_eq!(program, expected);
 
         let expected_string = "[1, (1 + 2)];";
+        assert_eq!(program.to_string(), expected_string.to_string())
+    }
+
+    #[test]
+    fn hash_literal() {
+        let input = "{ (\"a\" + \"b\"): 1, \"c\": 2 + 3 }";
+        let expr = Expr::Hash(vec![
+            (
+                Expr::Infix {
+                    left: Box::new(Expr::String("a".to_string())),
+                    op: Token::Plus,
+                    right: Box::new(Expr::String("b".to_string())),
+                },
+                Expr::Int(1),
+            ),
+            (
+                Expr::String("c".to_string()),
+                Expr::Infix {
+                    left: Box::new(Expr::Int(2)),
+                    op: Token::Plus,
+                    right: Box::new(Expr::Int(3)),
+                },
+            ),
+        ]);
+        let expected = Program {
+            statements: vec![Stmt::Expr(expr)],
+        };
+
+        let lexer = Lexer::new(String::from(input));
+        let program = Parser::new(lexer).parse().unwrap();
+        assert_eq!(program, expected);
+
+        let expected_string = "\
+{
+    (a + b): 1,
+    c: (2 + 3),
+};";
         assert_eq!(program.to_string(), expected_string.to_string())
     }
 

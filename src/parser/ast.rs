@@ -1,5 +1,6 @@
 use crate::parser::token::Token;
 use std::fmt;
+use std::hash::Hash;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Program {
@@ -18,7 +19,7 @@ impl fmt::Display for Program {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Stmt {
     Let(String, Expr),
     Return(Expr),
@@ -43,7 +44,7 @@ impl fmt::Display for Stmt {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Expr {
     Ident(String),
     Int(i64),
@@ -68,6 +69,7 @@ pub enum Expr {
         body: Box<Stmt>,
     },
     Array(Vec<Expr>),
+    Hash(Vec<(Expr, Expr)>),
     Index {
         left: Box<Expr>,
         index: Box<Expr>,
@@ -120,6 +122,18 @@ impl fmt::Display for Expr {
                     .map(|i| i.to_string())
                     .collect::<Vec<String>>()
                     .join(", "),
+            ),
+            Expr::Hash(hash) => write!(
+                f,
+                "{{\n{}\n}}",
+                indent(
+                    hash.iter()
+                        .map(|(k, v)| format!("{}: {},", k.to_string(), v.to_string()))
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                        .as_str(),
+                    1
+                )
             ),
             Expr::Index { left, index } => write!(f, "{}[{}]", left.to_string(), index.to_string()),
             Expr::FunctionLiteral { params, body } => write!(

@@ -3,12 +3,14 @@ use crate::eval::EvalResult;
 use std::cmp::PartialEq;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum BuiltinFn {
     First,
     Last,
+    Rest,
 
     Len,
+
     Puts,
 }
 
@@ -22,7 +24,6 @@ impl BuiltinFn {
                 },
                 _ => Err(format!("'first' expected an Array, got {:?}", args)),
             },
-
             BuiltinFn::Last => match &args[..] {
                 [Object::Array(items)] => match items.last() {
                     Some(item) => Ok(item.clone()),
@@ -30,7 +31,13 @@ impl BuiltinFn {
                 },
                 _ => Err(format!("'last' expected an Array, got {:?}", args)),
             },
-
+            BuiltinFn::Rest => match &args[..] {
+                [Object::Array(items)] => {
+                    let rest = items.iter().cloned().skip(1).collect::<Vec<Object>>();
+                    Ok(Object::Array(rest))
+                }
+                _ => Err(format!("'rest' expected an Array, got {:?}", args)),
+            },
             BuiltinFn::Len => match &args[..] {
                 [Object::StringObj(s)] => Ok(Object::Int(s.len() as i64)),
                 [Object::Array(items)] => Ok(Object::Int(items.len() as i64)),
@@ -52,6 +59,7 @@ impl fmt::Display for BuiltinFn {
         match &self {
             BuiltinFn::First => write!(f, "first"),
             BuiltinFn::Last => write!(f, "last"),
+            BuiltinFn::Rest => write!(f, "rest"),
             BuiltinFn::Len => write!(f, "len"),
             BuiltinFn::Puts => write!(f, "puts"),
         }

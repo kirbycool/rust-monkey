@@ -1,7 +1,7 @@
 use crate::parser::ast::Precedence;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Token {
     Illegal(String),
 
@@ -32,6 +32,7 @@ pub enum Token {
     // Delimiters
     Comma,
     Semicolon,
+    Colon,
 
     LParen,
     RParen,

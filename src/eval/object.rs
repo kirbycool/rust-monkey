@@ -4,9 +4,11 @@ use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Clone)]
+// These should probably be their own structs. Doing this is too inflexible.
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Object {
     Int(i64),
     Bool(bool),
@@ -19,7 +21,28 @@ pub enum Object {
         env: EnvWrapper,
     },
     Builtin(BuiltinFn),
+    Hash(HashMap<Object, Object>),
     Null,
+}
+
+impl Object {
+    pub fn is_hash_key(&self) -> bool {
+        match self {
+            Object::Int(_) | Object::Bool(_) | Object::StringObj(_) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Hash for Object {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Object::Int(v) => v.hash(state),
+            Object::StringObj(v) => v.hash(state),
+            Object::Bool(v) => v.hash(state),
+            _ => "unsupported".hash(state),
+        }
+    }
 }
 
 impl fmt::Display for Object {
@@ -49,12 +72,24 @@ impl fmt::Display for Object {
                 indent(body.to_string().as_str(), 1)
             ),
             Object::Builtin(func) => write!(f, "{}", func),
+            Object::Hash(hash) => write!(
+                f,
+                "{{\n{}\n}}",
+                indent(
+                    hash.iter()
+                        .map(|(k, v)| format!("{}: {},", k.to_string(), v.to_string()))
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                        .as_str(),
+                    1
+                )
+            ),
             Object::Null => write!(f, "null"),
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Env {
     store: HashMap<String, Object>,
     outer: Option<EnvWrapper>,

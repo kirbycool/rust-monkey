@@ -99,6 +99,7 @@ impl Iterator for Lexer {
             ']' => RBracket,
             ',' => Comma,
             ';' => Semicolon,
+            ':' => Colon,
             '"' => Str(self.read_string()),
             c => {
                 if is_identifier_start(c) {
@@ -181,6 +182,23 @@ mod tests {
                 Comma,
                 Int("2".to_string()),
                 RBracket,
+            ],
+        )];
+        for (input, output) in cases.into_iter() {
+            assert_tokens(input, &output)
+        }
+    }
+
+    #[test]
+    fn hash() {
+        let cases = vec![(
+            "{1: 2}".to_string(),
+            [
+                LBrace,
+                Int("1".to_string()),
+                Colon,
+                Int("2".to_string()),
+                RBrace,
             ],
         )];
         for (input, output) in cases.into_iter() {

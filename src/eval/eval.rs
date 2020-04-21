@@ -3,6 +3,7 @@ use crate::eval::object::Object::*;
 use crate::eval::object::{Env, EnvWrapper, Object};
 use crate::parser::ast::{Expr, Program, Stmt};
 use crate::parser::token::Token;
+use std::collections::HashMap;
 
 pub type EvalResult = Result<Object, String>;
 
@@ -55,6 +56,7 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
                 .collect::<Result<Vec<Object>, String>>()?;
             Ok(Array(item_objs))
         }
+        Expr::Hash(entries) => eval_hash_literal(entries, env),
         Expr::Index { left, index } => eval_index(*left, *index, env),
         Expr::Prefix { op, right } => eval_prefix(op, eval_expr(*right, env.clone())?),
         Expr::Infix { left, op, right } => eval_infix(
@@ -72,7 +74,7 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
             alternative.map(|e| *e),
             env.clone(),
         ),
-        Expr::Ident(name) => eval_ident(name, env),
+        Expr::Ident(name) => eval_ident(name, env.clone()),
         Expr::FunctionLiteral { params, body } => Ok(Function {
             params,
             body: *body,
@@ -82,12 +84,34 @@ fn eval_expr(expr: Expr, env: EnvWrapper) -> EvalResult {
     }
 }
 
+fn eval_hash_literal(entries: Vec<(Expr, Expr)>, env: EnvWrapper) -> EvalResult {
+    let mut map = HashMap::new();
+    for (key, value) in entries {
+        let k = eval_expr(key, env.clone())?;
+        let v = eval_expr(value, env.clone())?;
+
+        if !k.is_hash_key() {
+            return Err(format!("Invalid hash key {}", k.to_string()));
+        }
+        map.insert(k, v);
+    }
+
+    Ok(Hash(map))
+}
+
 fn eval_index(left: Expr, index: Expr, env: EnvWrapper) -> EvalResult {
     let index_obj = eval_expr(index, env.clone())?;
     match eval_expr(left, env)? {
         Array(items) => match index_obj {
             Int(index) => match items.get(index as usize) {
                 Some(item) => Ok(item.clone()),
+                None => Ok(Null),
+            },
+            obj => Err(format!("'{}' is not a valid array index", obj)),
+        },
+        Hash(map) => match index_obj {
+            obj if obj.is_hash_key() => match map.get(&obj) {
+                Some(value) => Ok(value.clone()),
                 None => Ok(Null),
             },
             obj => Err(format!("'{}' is not a valid array index", obj)),
@@ -167,6 +191,7 @@ fn eval_ident(name: String, env: EnvWrapper) -> EvalResult {
     match name.as_str() {
         "first" => Ok(Builtin(BuiltinFn::First)),
         "last" => Ok(Builtin(BuiltinFn::Last)),
+        "rest" => Ok(Builtin(BuiltinFn::Rest)),
         "len" => Ok(Builtin(BuiltinFn::Len)),
         "puts" => Ok(Builtin(BuiltinFn::Puts)),
         _ => {
@@ -211,6 +236,7 @@ mod tests {
     use crate::parser::ast::{Expr, Stmt};
     use crate::parser::token::Token;
     use crate::parser::{Lexer, Parser};
+    use std::collections::HashMap;
 
     fn assert_cases(cases: Vec<(&str, EvalResult)>) -> () {
         for (input, output) in cases.iter().cloned() {
@@ -262,6 +288,42 @@ mod tests {
             ("let foo = [1, 1 + 2]; foo[1];", Ok(Int(3))),
             ("[1, 1 + 2][0];", Ok(Int(1))),
             ("[1, 1 + 2][2];", Ok(Null)),
+        ];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn hash() {
+        let cases = vec![(
+            r#"
+            let two = "two";
+            {
+                "one": 10 - 9,
+                two: 1 + 1,
+                "thr" + "ee": 6 / 2,
+                4: 4,
+                true: 5,
+                false: 6,
+            }"#,
+            {
+                let mut map = HashMap::new();
+                map.insert(StringObj("one".to_string()), Int(1));
+                map.insert(StringObj("two".to_string()), Int(2));
+                map.insert(StringObj("three".to_string()), Int(3));
+                map.insert(Int(4), Int(4));
+                map.insert(Bool(true), Int(5));
+                map.insert(Bool(false), Int(6));
+                Ok(Hash(map))
+            },
+        )];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn hash_index() {
+        let cases = vec![
+            ("let foo = { 1: 2, 3: 4}; foo[1];", Ok(Int(2))),
+            ("{ 1: 2, 3: 4}[0];", Ok(Null)),
         ];
         assert_cases(cases)
     }
@@ -473,6 +535,19 @@ mod tests {
             (
                 "last(1)",
                 Err("'last' expected an Array, got [Int(1)]".to_string()),
+            ),
+        ];
+        assert_cases(cases)
+    }
+
+    #[test]
+    fn builtin_rest() {
+        let cases = vec![
+            ("rest([1, 2])", Ok(Array(vec![Int(2)]))),
+            ("rest([])", Ok(Array(vec![]))),
+            (
+                "rest(1)",
+                Err("'rest' expected an Array, got [Int(1)]".to_string()),
             ),
         ];
         assert_cases(cases)
